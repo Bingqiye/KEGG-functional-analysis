@@ -5,7 +5,8 @@
 **2.** Pathway L2 (E.g Carbohydrate metabolism)  
 **3.** pathway (E.g Glycolysis / Gluconeogenesis [PATH:ko00010])  
 **4.** ko description  
-  [Pathway层级解释](http://www.360doc.com/content/18/0313/11/45848444_736603164.shtml)
+  [Pathway层级解释](http://www.360doc.com/content/18/0313/11/45848444_736603164.shtml)  
+  ko的abundance:同属于一个ko的KO加合（Cell Host Microbe. 2022 Oct 12;30(10):1450-1463.e8. doi: 10.1016/j.chom.2022.09.004.）  
 
 - Module
 Module 是KO的功能合集，每个module 代表1个功能单元  
