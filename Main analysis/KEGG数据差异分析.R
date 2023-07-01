@@ -70,17 +70,17 @@ KEGG_gene <- as.data.frame(t(KEGG_gene))
 KEGG_pathway$ID <- rownames(KEGG_pathway)
 RC_metadata$ID <- rownames(RC_metadata)
 harmonized_KEGG_pathway <- inner_join(KEGG_pathway,RC_metadata,by="ID")
-harmonized_KEGG_pathway <- select(harmonized_KEGG_pathway,c("ID","RC","age","gender","BMI","smoking","drinking","diabetes","hypertension","MET","DD",colnames(KEGG_pathway)))
+harmonized_KEGG_pathway <- dplyr::select(harmonized_KEGG_pathway,c("ID","RC","age","gender","BMI","smoking","drinking","diabetes","hypertension","MET","DD",colnames(KEGG_pathway)))
 #KEGG module合并
 KEGG_module$ID <- rownames(KEGG_module)
 RC_metadata$ID <- rownames(RC_metadata)
 harmonized_KEGG_module <- inner_join(KEGG_module,RC_metadata,by="ID")
-harmonized_KEGG_module <- select(harmonized_KEGG_module,c("ID","RC","age","gender","BMI","smoking","drinking","diabetes","hypertension","MET","DD",colnames(KEGG_module)))
+harmonized_KEGG_module <- dplyr::select(harmonized_KEGG_module,c("ID","RC","age","gender","BMI","smoking","drinking","diabetes","hypertension","MET","DD",colnames(KEGG_module)))
 #KEGG KO合并
 KEGG_gene$ID <- rownames(KEGG_gene)
 RC_metadata$ID <- rownames(RC_metadata)
 harmonized_KEGG_gene <- inner_join(KEGG_gene,RC_metadata,by="ID")
-harmonized_KEGG_gene <- select(harmonized_KEGG_gene,c("ID","RC","age","gender","BMI","smoking","drinking","diabetes","hypertension","MET","DD",colnames(KEGG_gene)))
+harmonized_KEGG_gene <- dplyr::select(harmonized_KEGG_gene,c("ID","RC","age","gender","BMI","smoking","drinking","diabetes","hypertension","MET","DD",colnames(KEGG_gene)))
 
 # 广义线性模型差异分析 --------------------------------------------------------------------
 source("C:/Users/Dell/Desktop/每日记录/20230629/广义线性模型变量筛选.R")
