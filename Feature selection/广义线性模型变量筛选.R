@@ -1,8 +1,8 @@
 linear_model_feature_selection <- function(dataframe,outcome,exposure,cov){
-  temp <- select(dataframe,c(outcome,cov,exposure))
+  temp <- dplyr::select(dataframe,c(outcome,cov,exposure))
   results_summary <- NULL
   for (i in c((sum(length(outcome),length(cov))+1):ncol(temp))) {
-    temp_glm <- select(dataframe,c(outcome,cov,colnames(temp)[i]))
+    temp_glm <- dplyr::select(dataframe,c(outcome,cov,colnames(temp)[i]))
     fomula <- paste(outcome,"~",".",sep = "")
     model <- glm(fomula,data = temp_glm)
     if((length(coef(summary(model)))/4)>(sum(length(outcome),length(cov)))){
