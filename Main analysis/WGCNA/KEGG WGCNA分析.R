@@ -141,11 +141,12 @@ plotDendroAndColors(net$dendrograms[[1]], mergedColors[net$blockGenes[[1]]],
 moduleLabels <- net$colors
 moduleColors <- labels2colors(net$colors)
 # 每个样本对应的模块评分
-MEs <- net$MEs
+MEs_noID <- net$MEs
+MEs <- MEs_noID
 rownames(MEs) <- harmonized_KEGG_module$ID
 MEs$ID <- rownames(MEs)
 
-# 整合数据框，使用线性模型进行关联分析确定关键Module --------------------------------------------------------
+# 使用自定义的线性筛选方法确定关键Module --------------------------------------------------------
 RC_metadata_module <- inner_join(RC_metadata,MEs,by="ID")
 source("C:/Users/Dell/Desktop/每日记录/20230629/广义线性模型变量筛选.R")
 outcome <- "RC"
@@ -154,7 +155,13 @@ cov <- c("age","gender","BMI","smoking","drinking","diabetes","hypertension","ME
 RC_metadata_module_glm_summary <- linear_model_feature_selection(RC_metadata_module,outcome,exposure,cov)
 RC_metadata_module <- dplyr::select(RC_metadata_module,c(colnames(RC_metadata),RC_metadata_module_glm_summary$ID[which(RC_metadata_module_glm_summary$FDR<0.05)]))
 
-# 根据得到的差异Module挑出相应的KEGG KO -----------------------------------------------
+# 使用WGCNA自带的方法确定hub KO module ---------------------------------------------
+#只得到每个hub里最重要的一个KO module
+hub <- chooseTopHubInEachModule(harmonized_KEGG_module[,12:ncol(harmonized_KEGG_module)],moduleColors, omitColors = "grey", power = 2)
+# 使用KME值（module eigengene-based connectivity）来衡量基因和模块的关系，通常选择|kME| >=阈值（0.8）来筛选出hub gene
+datKME <- signedKME(harmonized_KEGG_module[,12:ncol(harmonized_KEGG_module)], MEs_noID, outputColumnName="kME_MM.")
+
+# 根据得到的差异Module挑出相应的KEGG KO module -----------------------------------------------
 module_KO_list <- as.data.frame(moduleLabels)
 module_KO_list$ME <- "ME"
 module_KO_list$Type <- str_c(module_KO_list$ME,module_KO_list$moduleLabels)
@@ -163,8 +170,10 @@ diff_module_KO_list <- dplyr::select(module_KO_list,c(KO,Type))
 diff_module_KO_list <- diff_module_KO_list[which(diff_module_KO_list$Type%in%RC_metadata_module_glm_summary$ID[which(RC_metadata_module_glm_summary$FDR<0.05)]),]
 diff_module_KO_list <- diff_module_KO_list[which(diff_module_KO_list$Type!="ME0"),]
 
-# 对筛选得到的KO根据模块分别进行关联分析 ------------------------------------------------------
-harmonized_KEGG_module <- dplyr::select(harmonized_KEGG_module,c(colnames(harmonized_KEGG_module)[which(colnames(harmonized_KEGG_module)%in%colnames(RC_metadata))],diff_module_KO_list$KO[which(diff_module_KO_list$Type=="ME2")]))
+# 对筛选得到的KO module根据模块分别进行关联分析 ------------------------------------------------------
+harmonized_KEGG_module_raw <- harmonized_KEGG_module
+#ME2 cluster1
+harmonized_KEGG_module <- dplyr::select(harmonized_KEGG_module_raw,c(colnames(harmonized_KEGG_module_raw)[which(colnames(harmonized_KEGG_module_raw)%in%colnames(RC_metadata))],diff_module_KO_list$KO[which(diff_module_KO_list$Type=="ME2")]))
 spearman_test <- corr.test(harmonized_KEGG_module[,12:103],harmonized_KEGG_module[,12:103],method = "spearman",adjust = "BH")
 p <- pheatmap(spearman_test$r,fontsize_number=4,fontsize = 7,
          cellwidth = 7, cellheight = 7,
@@ -181,19 +190,115 @@ cluster_results <- data.frame(ID=colnames(newOrder),cluster=row_cluster)
 cluster1 <- cluster_results$ID[which(cluster_results$cluster==1)]
 harmonized_KEGG_module_cluster1 <- dplyr::select(harmonized_KEGG_module,c(RC,cluster1,ID))
 
+#ME2 cluster2
+harmonized_KEGG_module <- dplyr::select(harmonized_KEGG_module_raw,c(colnames(harmonized_KEGG_module_raw)[which(colnames(harmonized_KEGG_module_raw)%in%colnames(RC_metadata))],diff_module_KO_list$KO[which(diff_module_KO_list$Type=="ME2")]))
+spearman_test <- corr.test(harmonized_KEGG_module[,12:103],harmonized_KEGG_module[,12:103],method = "spearman",adjust = "BH")
+p <- pheatmap(spearman_test$r,fontsize_number=4,fontsize = 7,
+              cellwidth = 7, cellheight = 7,
+              cluster_rows = T,
+              display_numbers = matrix(ifelse(spearman_test$p < 0.001, 
+                                              "***",
+                                              ifelse(spearman_test$p < 0.01 ,"**",
+                                                     ifelse(spearman_test$p<0.05 , "*"," "))
+              ), nrow(spearman_test$p)),
+              cluster_cols = T)
+row_cluster <- cutree(p$tree_row, k=2)
+newOrder <- harmonized_KEGG_module[,12:103][p$tree_row$order,]
+cluster_results <- data.frame(ID=colnames(newOrder),cluster=row_cluster)
+cluster2 <- cluster_results$ID[which(cluster_results$cluster==2)]
+harmonized_KEGG_module_cluster2 <- dplyr::select(harmonized_KEGG_module,c(RC,cluster2,ID))
+
+#ME3 cluster1
+harmonized_KEGG_module <- dplyr::select(harmonized_KEGG_module_raw,c(colnames(harmonized_KEGG_module_raw)[which(colnames(harmonized_KEGG_module_raw)%in%colnames(RC_metadata))],diff_module_KO_list$KO[which(diff_module_KO_list$Type=="ME3")]))
+spearman_test <- corr.test(harmonized_KEGG_module[,12:73],harmonized_KEGG_module[,12:73],method = "spearman",adjust = "BH")
+p <- pheatmap(spearman_test$r,fontsize_number=4,fontsize = 7,
+              cellwidth = 7, cellheight = 7,
+              cluster_rows = T,
+              display_numbers = matrix(ifelse(spearman_test$p < 0.001, 
+                                              "***",
+                                              ifelse(spearman_test$p < 0.01 ,"**",
+                                                     ifelse(spearman_test$p<0.05 , "*"," "))
+              ), nrow(spearman_test$p)),
+              cluster_cols = T)
+row_cluster <- cutree(p$tree_row, k=2)
+newOrder <- harmonized_KEGG_module[,12:73][p$tree_row$order,]
+cluster_results <- data.frame(ID=colnames(newOrder),cluster=row_cluster)
+cluster1_2 <- cluster_results$ID[which(cluster_results$cluster==1)]
+harmonized_KEGG_module_cluster1_2 <- dplyr::select(harmonized_KEGG_module,c(RC,cluster1_2,ID))
+
+#ME3 cluster2
+harmonized_KEGG_module <- dplyr::select(harmonized_KEGG_module_raw,c(colnames(harmonized_KEGG_module_raw)[which(colnames(harmonized_KEGG_module_raw)%in%colnames(RC_metadata))],diff_module_KO_list$KO[which(diff_module_KO_list$Type=="ME3")]))
+spearman_test <- corr.test(harmonized_KEGG_module[,12:73],harmonized_KEGG_module[,12:73],method = "spearman",adjust = "BH")
+p <- pheatmap(spearman_test$r,fontsize_number=4,fontsize = 7,
+              cellwidth = 7, cellheight = 7,
+              cluster_rows = T,
+              display_numbers = matrix(ifelse(spearman_test$p < 0.001, 
+                                              "***",
+                                              ifelse(spearman_test$p < 0.01 ,"**",
+                                                     ifelse(spearman_test$p<0.05 , "*"," "))
+              ), nrow(spearman_test$p)),
+              cluster_cols = T)
+row_cluster <- cutree(p$tree_row, k=2)
+newOrder <- harmonized_KEGG_module[,12:73][p$tree_row$order,]
+cluster_results <- data.frame(ID=colnames(newOrder),cluster=row_cluster)
+cluster2_2 <- cluster_results$ID[which(cluster_results$cluster==2)]
+harmonized_KEGG_module_cluster2_2 <- dplyr::select(harmonized_KEGG_module,c(RC,cluster2_2,ID))
+
 # 计算 in sclico score ------------------------------------------------------
+setwd("C:/Users/Dell/Desktop/每日记录/20230701/")
 source("interative_linear_modeling_with_continuous_outcome_without_feature_selection.R")
 source("readin_interation_results_continuous_without_feature_selection.R")
-
-interative_linear_modeling_with_continuous_outcome_without_feature_selection(pathway ="C:/Users/Dell/Desktop/每日记录/20230701/Output/",
+#ME2_cluster1
+interative_linear_modeling_with_continuous_outcome_without_feature_selection(pathway ="C:/Users/Dell/Desktop/每日记录/20230701/Output/ME2_cluster1/Output/",
                                                                              dataframe = harmonized_KEGG_module_cluster1,ID="ID",outcome = "RC",
                                                                              ninteration = 20,mproportion = 0.7,keep_list = cluster1)
 
-readin_interation_results_continuous_without_feature_selection(pathway="C:/Users/Dell/Desktop/每日记录/20230701/Output/",
+readin_interation_results_continuous_without_feature_selection(pathway="C:/Users/Dell/Desktop/每日记录/20230701/Output/ME2_cluster1/Output/",
                                                                dataframe=harmonized_KEGG_module_cluster1, outcome="RC")
 
-harmonized_KEGG_module_cluster1 <- read.table("C:/Users/Dell/Desktop/每日记录/20230701/Output/weighted_score.tsv",header = T)
-harmonized_KEGG_module_cluster1$weighted_score <- -harmonized_KEGG_module_cluster1$weighted_score
-summary(lm(RC~harmonized_KEGG_module_cluster1$weighted_score,data = harmonized_KEGG_module))
+#ME2_cluster2
+interative_linear_modeling_with_continuous_outcome_without_feature_selection(pathway ="C:/Users/Dell/Desktop/每日记录/20230701/Output/ME2_cluster2/Output/",
+                                                                             dataframe = harmonized_KEGG_module_cluster2,ID="ID",outcome = "RC",
+                                                                             ninteration = 20,mproportion = 0.7,keep_list = cluster2)
 
+readin_interation_results_continuous_without_feature_selection(pathway="C:/Users/Dell/Desktop/每日记录/20230701/Output/ME2_cluster2/Output/",
+                                                               dataframe=harmonized_KEGG_module_cluster2, outcome="RC")
 
+#ME3_cluster1
+interative_linear_modeling_with_continuous_outcome_without_feature_selection(pathway ="C:/Users/Dell/Desktop/每日记录/20230701/Output/ME3_cluster1/Output/",
+                                                                             dataframe = harmonized_KEGG_module_cluster1_2,ID="ID",outcome = "RC",
+                                                                             ninteration = 20,mproportion = 0.7,keep_list = cluster1_2)
+
+readin_interation_results_continuous_without_feature_selection(pathway="C:/Users/Dell/Desktop/每日记录/20230701/Output/ME3_cluster1/Output/",
+                                                               dataframe=harmonized_KEGG_module_cluster1_2, outcome="RC")
+
+#ME3_cluster2
+interative_linear_modeling_with_continuous_outcome_without_feature_selection(pathway ="C:/Users/Dell/Desktop/每日记录/20230701/Output/ME3_cluster2/Output/",
+                                                                             dataframe = harmonized_KEGG_module_cluster2_2,ID="ID",outcome = "RC",
+                                                                             ninteration = 20,mproportion = 0.7,keep_list = cluster2_2)
+
+readin_interation_results_continuous_without_feature_selection(pathway="C:/Users/Dell/Desktop/每日记录/20230701/Output/ME3_cluster2/Output/",
+                                                               dataframe=harmonized_KEGG_module_cluster2_2, outcome="RC")
+
+# 读取特征重要性排序（包括ME2与ME3） ----------------------------------------------------
+feature_importance_ME2_1 <- read.table("C:/Users/Dell/Desktop/每日记录/20230701/Output/ME2_cluster1/Output/selected_features.tsv",header = T)
+feature_importance_ME2_2 <- read.table("C:/Users/Dell/Desktop/每日记录/20230701/Output/ME2_cluster2/Output/selected_features.tsv",header = T)
+feature_importance_ME2_1 <- feature_importance_ME2_1[order(feature_importance_ME2_1$p_val,decreasing = F),]
+feature_importance_ME2_1$fdr <- p.adjust(feature_importance_ME2_1$p_val,method = "BH")
+feature_importance_ME2_2 <- feature_importance_ME2_2[order(feature_importance_ME2_2$p_val,decreasing = F),]
+feature_importance_ME2_2$fdr <- p.adjust(feature_importance_ME2_2$p_val,method = "BH")
+feature_importance_ME2 <- rbind(feature_importance_ME2_1,feature_importance_ME2_2)
+feature_importance_ME3_1 <- read.table("C:/Users/Dell/Desktop/每日记录/20230701/Output/ME3_cluster1/Output/selected_features.tsv",header = T)
+feature_importance_ME3_2 <- read.table("C:/Users/Dell/Desktop/每日记录/20230701/Output/ME3_cluster2/Output/selected_features.tsv",header = T)
+feature_importance_ME3_1 <- feature_importance_ME3_1[order(feature_importance_ME3_1$p_val,decreasing = F),]
+feature_importance_ME3_1$fdr <- p.adjust(feature_importance_ME3_1$p_val,method = "BH")
+feature_importance_ME3_2 <- feature_importance_ME3_2[order(feature_importance_ME3_2$p_val,decreasing = F),]
+feature_importance_ME3_2$fdr <- p.adjust(feature_importance_ME3_2$p_val,method = "BH")
+feature_importance_ME3 <- rbind(feature_importance_ME3_1,feature_importance_ME3_2)
+
+# 提取关联显著的KO module --------------------------------------------------------
+target_Module_list <- c(feature_importance_ME2$Microbial[which(feature_importance_ME2$fdr<0.05)],feature_importance_ME3$Microbial[which(feature_importance_ME3$fdr<0.05)])
+target_Module_list
+setwd("C:/Users/Dell/Desktop/每日记录/20230701/")
+write.csv(feature_importance_ME2,"feature_importance_ME2.csv",row.names = F)
+write.csv(feature_importance_ME3,"feature_importance_ME3.csv",row.names = F)
